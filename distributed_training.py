@@ -42,7 +42,7 @@ class Args:
         self.parser = argparse.ArgumentParser(description='simple distributed training job')
         self.parser.add_argument('--train_ratio', type=float, default=0.7, help='Ratio for training data (default: 0.8)')
         self.parser.add_argument('--val_ratio', type=float, default=0.3, help='Ratio for validation data (default: 0.2)')
-        self.parser.add_argument('--batch_size', type=int, default=64, help='Input batch size (default: 16)')
+        self.parser.add_argument('--batch_size', type=int, default=32, help='Input batch size (default: 16)')
         self.parser.add_argument('--test_batch_size', type=int, default=32, help='Test batch size (default: 32)')
         self.parser.add_argument('--cuda', action='store_true', help='Enable CUDA (default: False)')
         self.parser.add_argument('--threads', type=int, default=4, help='Number of threads for data loading (default: 4)')
