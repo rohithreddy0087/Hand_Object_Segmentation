@@ -47,7 +47,7 @@ class Args:
         self.parser.add_argument('--cuda', action='store_true', help='Enable CUDA (default: False)')
         self.parser.add_argument('--threads', type=int, default=4, help='Number of threads for data loading (default: 4)')
         self.parser.add_argument('--num_epochs', type=int, default=200, help='Number of epochs to train (default: 1000)')
-        self.parser.add_argument('--save_every', type=int, default=10, help='Save checkpoints for every 10 epochs')
+        self.parser.add_argument('--save_every', type=int, default=1, help='Save checkpoints for every 10 epochs')
         self.parser.add_argument('--learning_rate', type=float, default=0.0001, help='Learning rate (default: 0.0001)')
         self.parser.add_argument('--model_dir', type=str, default='/root/data/hand_object_segmentation/deeplab/training_results', help='Model directory (default: /root/data/hand_object_segmentation/deeplab/training_results)')
         self.parser.add_argument('--checkpoints_dir', type=str, default='/root/data/hand_object_segmentation/deeplab/checkpoints', help='Checkpoints directory (default: /root/data/hand_object_segmentation/deeplab/checkpoints)')
@@ -125,6 +125,7 @@ class Trainer:
         optimizer: torch.optim.Optimizer,
         gpu_id: int,
         wandb,
+        opt,
         save_every: int,
     ) -> None:
         self.gpu_id = gpu_id
@@ -136,9 +137,10 @@ class Trainer:
         self.model = DDP(model, device_ids=[gpu_id])
         self.loss_fn = nn.CrossEntropyLoss()
         self.wandb = wandb
+        self.opt = opt
 
     def log_image_table(self, images, ground_truth, predicted):
-        table = self.wandb.Table(columns=["image", "predicted", "ground_truth"])
+        table = wandb.Table(columns=["image", "predicted", "ground_truth"])
         _, ground_truth = torch.max(ground_truth, dim = 1)
         _, predicted = torch.max(predicted, dim = 1)
 
@@ -146,7 +148,7 @@ class Trainer:
             img = np.transpose(img.numpy(), (1, 2, 0))*255
             gt = gt.numpy()*255
             pred = pred.numpy()*255
-            table.add_data(self.wandb.Image(img), self.wandb.Image(pred), self.wandb.Image(gt))
+            table.add_data(wandb.Image(img), wandb.Image(pred), wandb.Image(gt))
         self.wandb.log({"predictions_table":table}, commit=False)
 
     def _multi_acc(self, pred, label):
@@ -187,6 +189,9 @@ class Trainer:
                     "val/val_acc_step": acc,
                     "val/step": step}
         self.wandb.log(metrics)
+        if step in [int(len(self.val_data)/4), int(len(self.val_data)/2),\
+                     int(3*len(self.val_data)/4), len(self.val_data)-2]:
+            self.log_image_table(source, outputs, targets)
 
     def _run_epoch(self, epoch):
         b_sz = len(next(iter(self.train_data))[0])
@@ -217,9 +222,8 @@ class Trainer:
             with torch.no_grad():
                 source = source.to(self.gpu_id)
                 targets = targets.to(self.gpu_id)
-                self._run_val_batch(source, targets, batch_losses, batch_acc)
+                self._run_val_batch(source, targets, step, batch_losses, batch_acc)        
         
-        self.log_image_table(imgs, label_imgs, outputs)
         epoch_loss = np.mean(batch_losses)
         epoch_acc = np.mean(batch_acc)
         val_metrics = {"val/val_loss": epoch_loss, 
@@ -230,9 +234,9 @@ class Trainer:
 
     def _save_checkpoint(self, epoch):
         ckp = self.model.module.state_dict()
-        checkpoint_path = opt.checkpoints_dir + "/hand_only_" +"_epoch_" + str(epoch+1) + ".pth"
+        checkpoint_path = self.opt.checkpoints_dir + "/hand_only_" +"_epoch_" + str(epoch+1) + ".pth"
         torch.save(ckp, checkpoint_path)
-        print(f"Epoch {epoch} | Training checkpoint saved at {PATH}")
+        print(f"Epoch {epoch} | Training checkpoint saved at {checkpoint_path}")
 
     def train(self, max_epochs: int):
         for epoch in range(max_epochs):
@@ -297,7 +301,7 @@ def main(rank: int, world_size: int, opt, wandb):
     train_dataset, val_dataset, model, optimizer = load_train_objs(opt)
     train_data = prepare_dataloader(train_dataset, opt.batch_size)
     val_data = prepare_dataloader(val_dataset, opt.test_batch_size)
-    trainer = Trainer(model, train_data, val_data, optimizer, rank, wandb, opt.save_every)
+    trainer = Trainer(model, train_data, val_data, optimizer, rank, wandb, opt, opt.save_every)
     trainer.train(opt.num_epochs)
     destroy_process_group()
 
