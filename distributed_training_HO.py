@@ -55,16 +55,16 @@ class Args:
     def parse_args(self):
         return self.parser.parse_args()
 
-class HandDataset(Dataset):
+class HandObjectDataset(Dataset):
     """Hand Segmentation dataset."""
 
-    def __init__(self, path = "/root/data/hand_object_segmentation/datasets/union/hand/", transform=None):
+    def __init__(self, path = "/root/data/hand_object_segmentation/datasets/union/hand_object/", transform=None):
         """
         Args:
             transform (callable, optional): Optional transform to be applied
                 on a sample.
         """
-        self.num_classes = 2
+        self.num_classes = 3
         self.rgb_path = os.path.join(path, "rgb")
         self.seg_path = os.path.join(path, "mask")
         self.data = []
@@ -99,9 +99,8 @@ class HandDataset(Dataset):
             rgb = rgb/255
             mask = plt.imread(seg_file)
             mask = mask[:,:,0]
-            mask = mask >=150
             mask = mask.astype(np.uint8)
-            mask = np.eye(2)[mask]
+            mask = np.eye(self.num_classes)[mask]
             mask = self.transform_mask(mask)
             rgb = self.transform_rgb(rgb.astype(np.float32))
             return rgb, mask
@@ -301,7 +300,7 @@ def collate_fn(batch):
     return torch.utils.data.dataloader.default_collate(batch)
 
 def load_train_objs(opt):
-    dataset = HandDataset()
+    dataset = HandObjectDataset()
     num_samples = len(dataset)
     train_size = int(opt.train_ratio * num_samples)
     val_size = num_samples - train_size
@@ -340,10 +339,10 @@ if __name__ == "__main__":
     opt = Args().parse_args()
     run_wandb = wandb.init(
       # Set the project where this run will be logged
-      project="Hand-Segmentation", 
+      project="Hand-Object-Segmentation", 
       group="DDP", 
       # We pass a run name (otherwise it’ll be randomly assigned, like sunshine-lollypop-10)
-      name=f"DeepLabv3 Fine tune on hand segmentation", 
+      name=f"DeepLabv3 Fine tune on hand object segmentation", 
       # Track hyperparameters and run metadata
       config={
       "learning_rate": opt.learning_rate,
