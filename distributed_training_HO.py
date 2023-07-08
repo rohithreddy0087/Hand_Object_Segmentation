@@ -99,6 +99,7 @@ class HandObjectDataset(Dataset):
             rgb = rgb/255
             mask = plt.imread(seg_file)
             mask = mask.astype(np.uint8)
+            mask[mask>1] = 2
             mask = np.eye(self.num_classes)[mask]
             mask = self.transform_mask(mask)
             rgb = self.transform_rgb(rgb.astype(np.float32))
@@ -130,15 +131,16 @@ class Trainer:
         self.wandb = wandb
         self.opt = opt
 
-    def log_image_table(self, images, ground_truth, predicted):
+    def log_image_table(self, images, predicted, ground_truth):
         table = wandb.Table(columns=["image", "predicted", "ground_truth"])
         _, ground_truth = torch.max(ground_truth, dim = 1)
         _, predicted = torch.max(predicted, dim = 1)
-
         for img, gt, pred in zip(images.to("cpu"), ground_truth.to("cpu"), predicted.to("cpu")):
             img = np.transpose(img.numpy(), (1, 2, 0))*255
-            gt = gt.numpy()*255
-            pred = pred.numpy()*255
+            # gt = np.transpose(gt.numpy(), (1, 2, 0))*127
+            gt = gt.numpy()*127
+            # pred = np.transpose(pred.numpy(), (1, 2, 0))*127
+            pred = pred.numpy()*127
             table.add_data(wandb.Image(img), wandb.Image(pred), wandb.Image(gt))
         self.wandb.log({"predictions_table":table}, commit=False)
 
@@ -152,6 +154,9 @@ class Trainer:
 
     def iou(self, pred, target, n_classes = 3):
         ious = []
+        _, pred = torch.max(pred, dim = 1)
+        _, target = torch.max(target, dim = 1)
+
         pred = pred.view(-1)
         target = target.view(-1)
         # print(pred)
@@ -180,11 +185,11 @@ class Trainer:
         batch_losses.append(loss_value)
         acc = self._multi_acc(outputs, targets).cpu().numpy()
         batch_acc.append(acc)
-        jac = iou(outputs, label_imgs)
+        jac = self.iou(outputs, targets)
         batch_jac.append(jac)
-        loss.backward()
+        loss_out.backward()
         self.optimizer.step()
-        metrics = {"train/train_loss_step": loss, 
+        metrics = {"train/train_loss_step": loss_value, 
                     "train/train_acc_step": acc,
                     "train/train_jac_step": jac,
                     "train/step": step}
@@ -196,13 +201,13 @@ class Trainer:
         loss = self.loss_fn(outputs, targets)
         loss_value = loss.data.cpu().numpy()
         batch_losses.append(loss_value)
-        outputs = torch.sigmoid(outputs)
-        outputs = outputs>0.5
+        # outputs = torch.sigmoid(outputs)
+        # outputs = outputs>0.5
         acc = self._multi_acc(outputs, targets).cpu().numpy()
         batch_acc.append(acc)
-        jac = iou(outputs, label_imgs)
+        jac = self.iou(outputs, targets)
         batch_jac.append(jac)
-        metrics = {"val/val_loss_step": loss, 
+        metrics = {"val/val_loss_step": loss_value, 
                     "val/val_acc_step": acc,
                     "val/val_jac_step": jac,
                     "val/step": step}
@@ -259,7 +264,7 @@ class Trainer:
 
     def _save_checkpoint(self, epoch):
         ckp = self.model.module.state_dict()
-        checkpoint_path = self.opt.checkpoints_dir + "/hand_object_" +"_epoch_" + str(epoch+1) + ".pth"
+        checkpoint_path = self.opt.checkpoints_dir + "/hand_object_only_" +"_epoch_" + str(epoch+1) + ".pth"
         torch.save(ckp, checkpoint_path)
         print(f"Epoch {epoch} | Training checkpoint saved at {checkpoint_path}")
 
@@ -272,11 +277,12 @@ class Trainer:
 
 def custom_DeepLabv3(out_channel):
     # model = deeplabv3_resnet101(pretrained=True, progress=True)
-    model = deeplabv3_resnet101(weights=DeepLabV3_ResNet101_Weights.DEFAULT)
-    model.classifier = DeepLabHead(2048, out_channel)
-    model.aux_classifier = FCNHead(1024, out_channel)
+    model = deeplabv3_resnet101()
+    model.classifier = DeepLabHead(2048, 2)
+    model.aux_classifier = FCNHead(1024, 2)
     model_wts = torch.load("/root/data/hand_object_segmentation/deeplab/checkpoints/hand_only__epoch_121.pth")
     model.load_state_dict(model_wts)
+    model.classifier = DeepLabHead(2048, 3)
     model.aux_classifier = None
     return model
 
@@ -306,7 +312,7 @@ def load_train_objs(opt):
     n_steps_per_epoch = math.ceil(train_size / opt.batch_size)
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-    model = custom_DeepLabv3(out_channel = 2)
+    model = custom_DeepLabv3(out_channel = 3)
     params = add_weight_decay(model, l2_value=0.0001)
     optimizer = torch.optim.Adam(params, lr= opt.learning_rate)
 
