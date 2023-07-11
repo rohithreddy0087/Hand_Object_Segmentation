@@ -313,7 +313,7 @@ def load_train_objs(opt):
 
     model = custom_DeepLabv3(out_channel = 3)
     # params = add_weight_decay(model, l2_value=0.0001)
-    optimizer = torch.optim.Adam(params, lr= opt.learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr= opt.learning_rate)
 
     return train_dataset, val_dataset, model, optimizer
 
