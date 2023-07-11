@@ -98,6 +98,7 @@ class HandObjectDataset(Dataset):
             rgb = plt.imread(rgb_file)
             rgb = rgb/255
             mask = cv2.imread(seg_file)
+            mask = mask[:,:,0]
             mask = mask.astype(np.uint8)
             mask[mask>1] = 2
             mask = np.eye(self.num_classes)[mask]
