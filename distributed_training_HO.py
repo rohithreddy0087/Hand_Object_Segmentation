@@ -46,8 +46,8 @@ class Args:
         self.parser.add_argument('--test_batch_size', type=int, default=32, help='Test batch size (default: 32)')
         self.parser.add_argument('--cuda', action='store_true', help='Enable CUDA (default: False)')
         self.parser.add_argument('--threads', type=int, default=4, help='Number of threads for data loading (default: 4)')
-        self.parser.add_argument('--num_epochs', type=int, default=300, help='Number of epochs to train (default: 1000)')
-        self.parser.add_argument('--save_every', type=int, default=5, help='Save checkpoints for every 10 epochs')
+        self.parser.add_argument('--num_epochs', type=int, default=30, help='Number of epochs to train (default: 1000)')
+        self.parser.add_argument('--save_every', type=int, default=1, help='Save checkpoints for every 10 epochs')
         self.parser.add_argument('--learning_rate', type=float, default=0.0001, help='Learning rate (default: 0.0001)')
         self.parser.add_argument('--model_dir', type=str, default='/root/data/hand_object_segmentation/deeplab/training_results', help='Model directory (default: /root/data/hand_object_segmentation/deeplab/training_results)')
         self.parser.add_argument('--checkpoints_dir', type=str, default='/root/data/hand_object_segmentation/deeplab/checkpoints', help='Checkpoints directory (default: /root/data/hand_object_segmentation/deeplab/checkpoints)')
@@ -75,12 +75,11 @@ class HandObjectDataset(Dataset):
         if transform is None:
             transform_list = [
                             transforms.ToTensor(),
-                            transforms.Resize(size=(256, 256), antialias=True),
-                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+                            transforms.Resize(size=(256, 256), antialias=False)]
             self.transform_rgb = transforms.Compose(transform_list)
             self.transform_mask = transforms.Compose([
                                       transforms.ToTensor(),
-                                      transforms.Resize(size=(256, 256), antialias=True)
+                                      transforms.Resize(size=(256, 256), antialias=False)
                                   ])
         else:
             self.transform = transform
@@ -97,7 +96,7 @@ class HandObjectDataset(Dataset):
             seg_file = os.path.join(self.seg_path, img_file)
             rgb = plt.imread(rgb_file)
             rgb = rgb/255
-            mask = plt.imread(seg_file)
+            mask = cv2.imread(seg_file)
             mask = mask.astype(np.uint8)
             mask[mask>1] = 2
             mask = np.eye(self.num_classes)[mask]
@@ -264,7 +263,7 @@ class Trainer:
 
     def _save_checkpoint(self, epoch):
         ckp = self.model.module.state_dict()
-        checkpoint_path = self.opt.checkpoints_dir + "/hand_object_only_" +"_epoch_" + str(epoch+1) + ".pth"
+        checkpoint_path = self.opt.checkpoints_dir + "/hand_object" +"_epoch_" + str(epoch+1) + ".pth"
         torch.save(ckp, checkpoint_path)
         print(f"Epoch {epoch} | Training checkpoint saved at {checkpoint_path}")
 
@@ -278,10 +277,10 @@ class Trainer:
 def custom_DeepLabv3(out_channel):
     # model = deeplabv3_resnet101(pretrained=True, progress=True)
     model = deeplabv3_resnet101()
-    model.classifier = DeepLabHead(2048, 2)
-    model.aux_classifier = FCNHead(1024, 2)
-    model_wts = torch.load("/root/data/hand_object_segmentation/deeplab/checkpoints/hand_only__epoch_121.pth")
-    model.load_state_dict(model_wts)
+    # model.classifier = DeepLabHead(2048, 2)
+    # model.aux_classifier = FCNHead(1024, 2)
+    # model_wts = torch.load("/root/data/hand_object_segmentation/deeplab/checkpoints/hand_only__epoch_121.pth")
+    # model.load_state_dict(model_wts)
     model.classifier = DeepLabHead(2048, 3)
     model.aux_classifier = None
     return model
@@ -313,7 +312,7 @@ def load_train_objs(opt):
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
     model = custom_DeepLabv3(out_channel = 3)
-    params = add_weight_decay(model, l2_value=0.0001)
+    # params = add_weight_decay(model, l2_value=0.0001)
     optimizer = torch.optim.Adam(params, lr= opt.learning_rate)
 
     return train_dataset, val_dataset, model, optimizer
@@ -347,7 +346,7 @@ if __name__ == "__main__":
       project="Hand-Object-Segmentation", 
       group="DDP", 
       # We pass a run name (otherwise it’ll be randomly assigned, like sunshine-lollypop-10)
-      name=f"DeepLabv3 Fine tune on hand object segmentation", 
+      name=f"Fine tune on hand object segmentation", 
       # Track hyperparameters and run metadata
       config={
       "learning_rate": opt.learning_rate,
