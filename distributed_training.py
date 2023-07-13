@@ -58,7 +58,7 @@ class Args:
 class HandDataset(Dataset):
     """Hand Segmentation dataset."""
 
-    def __init__(self, path = "/root/data/hand_object_segmentation/datasets/union/hand_object/", transform=None):
+    def __init__(self, path = "/root/data/hand_object_segmentation/datasets/union/hand/", transform=None):
         """
         Args:
             transform (callable, optional): Optional transform to be applied
@@ -75,12 +75,11 @@ class HandDataset(Dataset):
         if transform is None:
             transform_list = [
                             transforms.ToTensor(),
-                            transforms.Resize(size=(256, 256), antialias=True),
-                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+                            transforms.Resize(size=(256, 256), antialias=False)]
             self.transform_rgb = transforms.Compose(transform_list)
             self.transform_mask = transforms.Compose([
                                       transforms.ToTensor(),
-                                      transforms.Resize(size=(256, 256), antialias=True)
+                                      transforms.Resize(size=(256, 256), antialias=False)
                                   ])
         else:
             self.transform = transform
@@ -152,8 +151,10 @@ class Trainer:
         acc = acc * 100
         return acc
 
-    def iou(self, pred, target, n_classes = 3):
+    def iou(self, pred, target, n_classes = 2):
         ious = []
+        _, pred = torch.max(pred, dim = 1)
+        _, target = torch.max(target, dim = 1)
         pred = pred.view(-1)
         target = target.view(-1)
         # print(pred)
@@ -182,11 +183,11 @@ class Trainer:
         batch_losses.append(loss_value)
         acc = self._multi_acc(outputs, targets).cpu().numpy()
         batch_acc.append(acc)
-        jac = iou(outputs, label_imgs)
+        jac = self.iou(outputs, targets)
         batch_jac.append(jac)
-        loss.backward()
+        loss_out.backward()
         self.optimizer.step()
-        metrics = {"train/train_loss_step": loss, 
+        metrics = {"train/train_loss_step": loss_value, 
                     "train/train_acc_step": acc,
                     "train/train_jac_step": jac,
                     "train/step": step}
@@ -198,11 +199,10 @@ class Trainer:
         loss = self.loss_fn(outputs, targets)
         loss_value = loss.data.cpu().numpy()
         batch_losses.append(loss_value)
-        outputs = torch.sigmoid(outputs)
-        outputs = outputs>0.5
+        
         acc = self._multi_acc(outputs, targets).cpu().numpy()
         batch_acc.append(acc)
-        jac = iou(outputs, label_imgs)
+        jac = self.iou(outputs, targets)
         batch_jac.append(jac)
         metrics = {"val/val_loss_step": loss, 
                     "val/val_acc_step": acc,
@@ -261,7 +261,7 @@ class Trainer:
 
     def _save_checkpoint(self, epoch):
         ckp = self.model.module.state_dict()
-        checkpoint_path = self.opt.checkpoints_dir + "/hand_only_" +"_epoch_" + str(epoch+1) + ".pth"
+        checkpoint_path = self.opt.checkpoints_dir + "/hand" +"_epoch_" + str(epoch+1) + ".pth"
         torch.save(ckp, checkpoint_path)
         print(f"Epoch {epoch} | Training checkpoint saved at {checkpoint_path}")
 
@@ -276,25 +276,8 @@ def custom_DeepLabv3(out_channel):
     # model = deeplabv3_resnet101(pretrained=True, progress=True)
     model = deeplabv3_resnet101(weights=DeepLabV3_ResNet101_Weights.DEFAULT)
     model.classifier = DeepLabHead(2048, out_channel)
-    model.aux_classifier = FCNHead(1024, out_channel)
-    model_wts = torch.load("/root/data/hand_object_segmentation/deeplab/checkpoints/hand_only__epoch_121.pth")
-    model.load_state_dict(model_wts)
     model.aux_classifier = None
     return model
-
-def add_weight_decay(net, l2_value, skip_list=()):
-    # https://raberrytv.wordpress.com/2017/10/29/pytorch-weight-decay-made-easy/
-
-    decay, no_decay = [], []
-    for name, param in net.named_parameters():
-        if not param.requires_grad:
-            continue # frozen weights
-        if len(param.shape) == 1 or name.endswith(".bias") or name in skip_list:
-            no_decay.append(param)
-        else:
-            decay.append(param)
-
-    return [{'params': no_decay, 'weight_decay': 0.0}, {'params': decay, 'weight_decay': l2_value}]
 
 def collate_fn(batch):
     batch = list(filter(lambda x: x is not None, batch))
@@ -309,8 +292,7 @@ def load_train_objs(opt):
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
     model = custom_DeepLabv3(out_channel = 2)
-    params = add_weight_decay(model, l2_value=0.0001)
-    optimizer = torch.optim.Adam(params, lr= opt.learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr= opt.learning_rate)
 
     return train_dataset, val_dataset, model, optimizer
 
