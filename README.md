@@ -27,7 +27,7 @@ To handle the substantial dataset, our training script was implemented using PyT
 
 # Project Results
 ## Hand only Segmentation
-![combined_4](https://github.com/rohithreddy0087/Hand_Object_Segmentation/assets/51110057/3aceab1d-e7d6-4844-a1c9-bad8cfa84867)
+![combined_4](https://github.com/rohithreddy0087/Hand_Object_Segmentation/results/combined_4.png)
 
 ## Hand-Object Segmentation
 ![combined_1](https://github.com/rohithreddy0087/Hand_Object_Segmentation/assets/51110057/8289561a-45a0-4360-9649-d9db9e4ebc0a)
