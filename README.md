@@ -28,12 +28,17 @@ To handle the substantial dataset, our training script was implemented using PyT
 # Project Results
 ## Hand only Segmentation
 ![combined_4](/results/combined_4.png)
+![combined_5](/results/combined_5.png)
+![combined_6](/results/combined_6.png)
 
 ## Hand-Object Segmentation
-![combined_1](https://github.com/rohithreddy0087/Hand_Object_Segmentation/assets/51110057/8289561a-45a0-4360-9649-d9db9e4ebc0a)
-![combined_2](https://github.com/rohithreddy0087/Hand_Object_Segmentation/assets/51110057/2cc6fa8c-6b49-4a2d-b406-f8c2afe71cf6)
+![combined_1](/results/combined_1.png)
+![combined_2](/results/combined_2.png)
+![combined_3](/results/combined_3.png)
 
 ## Preliminary Results of 3D Hand-Pose Estimation
+![combined_7](/results/combined_7.png)
+![combined_8](/results/combined_8.png)
 
 ## Model Performance
 
