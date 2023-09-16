@@ -26,9 +26,14 @@ Subsequently, we fine-tuned the model on the combined hand-object dataset. We mo
 To handle the substantial dataset, our training script was implemented using PyTorch's Distributed Data Parallel (DDP), allowing us to utilize multiple GPUs efficiently. With over 100,000 training examples, this scalability was essential.
 
 # Project Results
+## Hand only Segmentation
+![combined_4](https://github.com/rohithreddy0087/Hand_Object_Segmentation/assets/51110057/3aceab1d-e7d6-4844-a1c9-bad8cfa84867)
+
+## Hand-Object Segmentation
 ![combined_1](https://github.com/rohithreddy0087/Hand_Object_Segmentation/assets/51110057/8289561a-45a0-4360-9649-d9db9e4ebc0a)
 ![combined_2](https://github.com/rohithreddy0087/Hand_Object_Segmentation/assets/51110057/2cc6fa8c-6b49-4a2d-b406-f8c2afe71cf6)
-![combined_3](https://github.com/rohithreddy0087/Hand_Object_Segmentation/assets/51110057/7e74d74c-32d3-40d3-8443-384d7d494146)
+
+## Preliminary Results of 3D Hand-Pose Estimation
 
 ## Model Performance
 
