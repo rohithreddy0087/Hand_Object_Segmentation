@@ -25,6 +25,21 @@ Subsequently, we fine-tuned the model on the combined hand-object dataset. We mo
 
 To handle the substantial dataset, our training script was implemented using PyTorch's Distributed Data Parallel (DDP), allowing us to utilize multiple GPUs efficiently. With over 100,000 training examples, this scalability was essential.
 
+# Project Results
+
+## Model Performance
+
+After extensive training and evaluation, the segmentation model yielded impressive results, indicating its effectiveness in accurately segmenting hands and objects in images. The following metrics were obtained:
+
+- **Train Jaccard Index**: 0.94
+- **Train Accuracy**: 98.8%
+- **Validation Jaccard Index**: 0.90
+- **Validation Accuracy**: 97.4%
+
+## Metric Choice
+
+It's worth noting that accuracy, while often used as a performance metric, can saturate quickly in segmentation tasks. Therefore, we adopted the **Jaccard Index** as a more reliable evaluation metric for our segmentation model. This metric provides a robust measure of the model's segmentation accuracy, taking into account both true positives and false positives while penalizing false negatives, making it well-suited for our specific task.
+
 ## Application
 
 The primary goal of this project is to use the trained hand-object segmentation model to automatically annotate ground truths for 3D hand pose estimation tasks. This application aligns with the innovative HOnnotate method, enhancing the efficiency and accuracy of hand pose estimation.
